@@ -104,3 +104,31 @@ Tests: 28 Python (doctests included) and 19 JS. ruff, ruff format, mypy clean.
 
 Next: polishing round 3 (the published site after the monthly build; performance of the largest venue on a phone;
 the README's numbers against the built atlases).
+
+### 2026-11-14 — polishing round 3
+
+**On a phone**, measured with `scripts/phone-perf.mjs` (new: headless Chrome over the DevTools protocol, 375×812 at
+2×, the CPU slowed 4×, reaching nothing but 127.0.0.1), on NeurIPS, the largest venue (19,214 papers): the map ready
+0.8 s after navigation, a frame while panning or zooming 22 ms at the median (65 ms at the 90th percentile), a topic's
+panel and chart 80 ms, the first search by meaning 0.2 s once its files are here and the next ones 0.09 s; 34 MB of
+JavaScript heap. Nothing there needed work. What a phone does notice is the download: the published site sends 1.5 MB
+for the NeurIPS map (compressed), and the first search by meaning another 11 MB (the model 6.7 MB, NeurIPS's vectors
+4.4 MB). So the model and the venue's vectors now download together rather than one after the other, and the status
+line says what is loading and how big it is (“the model … (7 MB, once) and NeurIPS's 4.7 MB of paper vectors”);
+the README says the same, where it named only the model.
+
+**The address follows the page**: the site read a venue and a paper from the URL's hash but never wrote the venue,
+so after choosing another venue the address still named the first one (a reload or a shared link opened the wrong
+venue), and closing a paper left its number there. Now a venue loaded, a paper closed and a paper opened each set the
+hash, and changing only the paper in the address (`#cvpr/3` → `#cvpr/40`) opens that paper; a number out of range is
+ignored. Checked in the browser: reload, venue switch, topic → paper → close, a typed hash.
+
+**The README's numbers against the built atlases** (both languages): ICLR 9,662, NeurIPS 19,214 and ICML 10,254 papers
+(round 2's fixes kept a few real papers); the NeurIPS example topics recounted on the published data (chain-of-thought
+18 papers in 2021 → 231 in 2025; the retrieval-augmented one of the README is now part of a broader LLM topic, so the
+example is multimodal LLMs and vision-language models, 11 → 200).
+
+Tests: 28 Python and 19 JS. ruff, ruff format, mypy clean.
+
+Next: polishing round 4 (engineering: a clean install from the wheel, the workflow's permissions and pins, dependency
+audit; the CLI's edge cases).

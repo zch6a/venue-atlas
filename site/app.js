@@ -85,6 +85,7 @@ async function loadVenue(key) {
   $("results").hidden = true;
   $("about").textContent = `${atlas.name} ${atlas.years[0]}–${atlas.years[atlas.years.length - 1]}: ${atlas.count.toLocaleString()} papers in ${atlas.topics.length} topics · built ${atlas.built}`;
   document.title = `${atlas.name} · venue-atlas`;
+  if (readHash()[0] !== key) location.replace(`#${encodeURIComponent(key)}`); // the address names the venue shown
   state.last = null;
   status.hidden = true;
   draw();
@@ -92,19 +93,26 @@ async function loadVenue(key) {
 }
 
 async function loadModel() {
-  if (!state.model) {
-    status.hidden = false;
-    status.textContent = "Loading the model for search by meaning (7 MB, once)…";
-    const meta = await json("model/vocab.json");
-    const table = await bytes("model/tokens.vec");
+  const atlas = state.atlas;
+  const needModel = !state.model;
+  const needVectors = !state.vectors;
+  if (!needModel && !needVectors) return true;
+  // what the first search by meaning downloads, said with its size (on a phone it is most of the page's weight)
+  const vectorsMB = ((atlas.count * atlas.model.dim) / 1048576).toFixed(1);
+  status.hidden = false;
+  status.textContent = needModel
+    ? `Loading the model for search by meaning (7 MB, once) and ${atlas.name}'s ${vectorsMB} MB of paper vectors…`
+    : `Loading ${atlas.name}'s ${vectorsMB} MB of paper vectors…`;
+  const [meta, table, vectors] = await Promise.all([
+    needModel ? json("model/vocab.json") : null,
+    needModel ? bytes("model/tokens.vec") : null,
+    needVectors ? bytes(`data/${encodeURIComponent(atlas.venue)}.vec`) : null,
+  ]); // together, not one after the other
+  if (meta && table && !state.model) {
     state.model = { vocab: new Map(meta.tokens.map((t, i) => [t, i])), unk: meta.unk, dim: meta.dim, scale: Float32Array.from(meta.scale), table };
   }
-  if (!state.vectors) {
-    status.hidden = false;
-    status.textContent = "Loading the papers' vectors…";
-    const atlas = state.atlas;
-    const vectors = await bytes(`data/${encodeURIComponent(atlas.venue)}.vec`);
-    if (state.atlas !== atlas) return false; // the venue changed meanwhile: these are another venue's vectors
+  if (state.atlas !== atlas) return false; // the venue changed meanwhile: these are another venue's vectors
+  if (vectors) {
     if (vectors.length !== atlas.count * atlas.model.dim) throw new Error("the papers' vectors do not match the atlas");
     state.vectors = vectors;
   }
@@ -280,6 +288,7 @@ function select(i, centre = false) {
   box.replaceChildren();
   if (i < 0) {
     box.hidden = true;
+    if (readHash()[1] >= 0) location.replace(`#${encodeURIComponent(a.venue)}`); // no paper named any more
     draw();
     return;
   }
@@ -595,6 +604,8 @@ async function start() {
         loadVenue(v).then((done) => {
           if (done && paper >= 0 && paper < state.n) select(paper, true);
         }).catch(fail);
+      } else if (v === state.atlas?.venue && paper >= 0 && paper < state.n && paper !== state.selected) {
+        select(paper, true); // another paper of the venue shown (a link followed, the address edited)
       }
     });
     await loadVenue(first.venue);

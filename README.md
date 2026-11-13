@@ -17,14 +17,14 @@ by meaning, in your browser.
 
 ---
 
-<p align="center"><a href="https://zch6a.github.io/venue-atlas/"><img src="docs/site.png" width="860" alt="The NeurIPS 2021–2025 map: 19,210 papers in 48 named topics, each topic's share of each year beside it"></a></p>
+<p align="center"><a href="https://zch6a.github.io/venue-atlas/"><img src="docs/site.png" width="860" alt="The NeurIPS 2021–2025 map: 19,214 papers in 48 named topics, each topic's share of each year beside it"></a></p>
 <p align="center"><b><a href="https://zch6a.github.io/venue-atlas/">zch6a.github.io/venue-atlas</a></b></p>
 
 | Venue | Years | Papers |
 |---|---|---|
-| ICLR | 2021–2025 | 9,660 |
-| NeurIPS | 2021–2025 | 19,210 |
-| ICML | 2021–2025 | 10,253 |
+| ICLR | 2021–2025 | 9,662 |
+| NeurIPS | 2021–2025 | 19,214 |
+| ICML | 2021–2025 | 10,254 |
 | CVPR | 2023–2025 | 7,946 |
 | ACL | 2021–2025 | 5,122 |
 | EMNLP | 2021–2025 | 5,798 |
@@ -35,9 +35,9 @@ The ACL venues are their main conferences (long and short papers; not Findings o
 
 Pick a venue and the years, hover over a dot for its title, click it for its links and the eight papers closest to
 it in meaning. Each topic is named by the words that set its papers apart, with a bar for its share of every year:
-at NeurIPS (as built on 2026-11-14), the chain-of-thought topic went from 19 papers in 2021 to 248 in 2025, and the
-one on LLMs and retrieval-augmented generation from 1 to 181. Search titles by words, or switch to *meaning*: the query is embedded in your browser with the
-same model the map was built with, and the closest papers light up (the model, 7 MB, loads on the first such search).
+at NeurIPS (as built on 2026-11-14), the chain-of-thought topic went from 18 papers in 2021 to 231 in 2025, and the
+one on multimodal LLMs and vision-language models from 11 to 200. Search titles by words, or switch to *meaning*: the query is embedded in your browser with the
+same model the map was built with, and the closest papers light up (the first such search downloads the model, 7 MB, once, and the venue's paper vectors, 4.7 MB for NeurIPS; the map itself is 1.5 MB).
 Click a topic for its papers per year (a chart, with the numbers as text) and the list of its papers. The map takes
 the keyboard too (arrow keys move it, + and − zoom, 0 resets, Escape clears); the topics, their papers and the
 search results are lists of links, readable without the map.
