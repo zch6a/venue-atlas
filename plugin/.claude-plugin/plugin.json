@@ -1,6 +1,6 @@
 {
   "name": "venue-atlas",
-  "description": "Maps of the papers accepted at ICLR, NeurIPS, ICML and CVPR: placed by meaning, grouped into named topics with their trends, searchable by meaning.",
+  "description": "Maps of the papers accepted at ICLR, NeurIPS, ICML, CVPR, ACL, EMNLP and NAACL: placed by meaning, grouped into named topics with their trends, searchable by meaning.",
   "version": "0.1.0",
   "author": { "name": "zch6a" },
   "homepage": "https://github.com/zch6a/venue-atlas",

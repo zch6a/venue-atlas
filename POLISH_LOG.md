@@ -195,3 +195,7 @@ Tests: 32 Python (doctests included) and 23 JS. ruff, ruff format, mypy clean.
 
 **v0.1.0**: tagged (annotated); the release workflow tests, builds the wheel and source archive, makes the GitHub
 release from the CHANGELOG section and points v0 at it.
+
+### 2026-11-14 — after the release
+
+The plugin's description named four venues of seven (plugin.json): fixed.
