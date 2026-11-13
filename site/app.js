@@ -84,7 +84,7 @@ async function loadVenue(key) {
   $("paper").hidden = true;
   $("results").hidden = true;
   const [y0, y1] = [atlas.years[0], atlas.years[atlas.years.length - 1]];
-  $("about").textContent = `${atlas.name} ${y0 === y1 ? y0 : `${y0}–${y1}`}:${atlas.count.toLocaleString()} papers in ${atlas.topics.length} topics · built ${atlas.built}`;
+  $("about").textContent = `${atlas.name} ${y0 === y1 ? y0 : `${y0}–${y1}`}: ${atlas.count.toLocaleString()} papers in ${atlas.topics.length} topics · built ${atlas.built}`;
   document.title = `${atlas.name} · venue-atlas`;
   if (readHash()[0] !== key) location.replace(`#${encodeURIComponent(key)}`); // the address names the venue shown
   state.last = null;

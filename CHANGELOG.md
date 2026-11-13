@@ -1,20 +1,33 @@
 # Changelog
 
-## 0.1.0 — unreleased
+## 0.1.0 — 2026-11-14
 
-First release.
+First release: maps of the papers accepted at seven machine-learning venues, as a static site
+(https://zch6a.github.io/venue-atlas/) and the command that builds it.
 
-- `venue-atlas build`: a venue's accepted papers (ICLR, NeurIPS, ICML 2021–2025; CVPR 2023–2025) from the
-  conference's own schedule file, embedded with a pinned static model, laid out by their neighbours, grouped into
-  named topics with each topic's count by year. Abstracts are read, not kept.
-- The site: the map, hover and click for a paper's links and its closest papers, topics with their share by year,
-  search by words or by meaning (the query embedded in the browser).
-- ACL, EMNLP and NAACL (main conferences, 2021–2025) from the ACL Anthology's BibTeX with abstracts.
-- A topic's papers per year as a chart with the numbers as text, and its papers as a list; the map by keyboard.
-- Every paper links to its conference page, its paper (or PDF) and its code or project page when
-  the source has them; LaTeX in titles shown as Unicode.
-- The address names the venue and the paper shown, so a link opens the same view.
-- `venue-atlas build` writes the page next to the data, so a folder it builds is a whole site; numpy is the only
-  dependency (the model's tokenizer is plain Python, checked against Hugging Face's `tokenizers`).
-- `venue-atlas search`: the closest papers to a query, from a built atlas (`--json`).
-- A monthly GitHub workflow that builds the site with a read-only token and deploys it.
+**Venues.** ICLR, NeurIPS and ICML 2021–2025 and CVPR 2023–2025 from each conference's own schedule file; ACL, EMNLP
+and NAACL 2021–2025 (main conferences, long and short papers) from the ACL Anthology's BibTeX. 60,195 papers. Abstracts
+are read to place the papers and are not kept.
+
+**The site.**
+- The map: papers placed by meaning (a pinned static embedding model, a UMAP-like layout), coloured by topic; hover for
+  a title, click for the paper's links (paper or PDF, conference page, code or project page) and its eight closest
+  papers.
+- Topics named by their distinctive words, each with its share of every year; click one for its papers per year as a
+  chart (the numbers also as text) and its papers as a list.
+- Search by words, or by meaning: the query is embedded in the browser with the same model, and its results match
+  `venue-atlas search`.
+- The keyboard moves and zooms the map; topics, papers and results are lists of links. The address names the venue
+  and the paper shown. Works at phone width.
+
+**The command.**
+- `venue-atlas build <venues> --out site` writes a whole site (the page, the atlases, the model for the browser);
+  `--years` for some years; downloads are cached.
+- `venue-atlas search "<query>" --venue <venue>`: the closest papers from a built atlas, `--json` for scripts.
+- `venue-atlas model` downloads the model (30 MB, pinned by revision and SHA-256); `venue-atlas venues` lists the
+  venues and years.
+- numpy is the only dependency: the model's tokenizer is plain Python, the same tokens as Hugging Face's `tokenizers`
+  on all 120,397 titles and abstracts.
+
+**The workflow.** The site is rebuilt monthly by a GitHub workflow whose build has a read-only token and whose deploy
+runs nothing of the project.

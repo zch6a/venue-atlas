@@ -169,3 +169,29 @@ Tests: 32 Python (doctests included) and 23 JS. ruff, ruff format, mypy clean.
 
 Next: polishing round 5 (the documents read through; a fuzz of the readers with broken schedule files and BibTeX;
 the CHANGELOG as release notes), then v0.1.0.
+
+### 2026-11-14 — polishing round 5, and v0.1.0
+
+**Broken inputs** (`scripts/fuzz.py`, new): mutations of real files from the build's cache — a schedule file of each of
+ICLR, NeurIPS, ICML and CVPR with bytes flipped, cut short, pieces repeated or removed, and JSON values replaced by
+ones of another type (null, numbers, lists, HTML, a lone surrogate, a 400-digit number); 3 MB of the Anthology's
+BibTeX the same way; random text with LaTeX fragments for the LaTeX and maths cleaners and the tokenizer. A reader
+must give papers or a SourceError, never another exception, and must not be slow. 300 rounds (seed 0): 2,400 broken
+schedule files, 30 broken BibTeX files, 900 random texts, 0 failures, the slowest 0.6 s. Then 1,500 rounds with seed 7 (other years' files): 12,000 broken schedule files, 150 broken BibTeX files, 4,500 random texts, 0 failures, the slowest again 0.6 s. Nothing to fix.
+
+**The documents read through**, both languages: the README's screenshot showed the counts before round 2's fixes and the
+old footer (retaken from the local site: 19,214 papers, the footer naming the ACL Anthology, CC BY 4.0) and, doing so,
+showed a space lost in round 4 (“2021–2025:19,214 papers”: fixed); the licence names the Anthology's licence for
+the ACL venues' titles; the limits say how many papers have no paper link in their source (an eighth at ICLR and
+NeurIPS, a fifth at ICML: their conference page has it); the address that names the view, a venue built into a folder
+with others joining the list, the Anthology's file fetched again after 30 days, all said; the browser and Python
+tokenizers described as both tested against the real one; the recipes use `@v0`, the latest release. SECURITY names
+the Anthology download and that numpy is the only run-time dependency; the plugin's skill says what the ACL venues
+download and what a topic's `count` looks like. Every version number (pyproject, package, plugin) is 0.1.0.
+
+**The CHANGELOG as release notes**: what the site does, what the command does, the venues and their 60,195 papers.
+
+Tests: 32 Python (doctests included) and 23 JS. ruff, ruff format, mypy clean.
+
+**v0.1.0**: tagged (annotated); the release workflow tests, builds the wheel and source archive, makes the GitHub
+release from the CHANGELOG section and points v0 at it.
