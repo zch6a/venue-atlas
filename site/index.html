@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>venue-atlas</title>
+<meta name="description" content="Maps of the papers accepted at ICLR, NeurIPS, ICML and CVPR: placed by meaning, grouped into topics, searchable by words or by meaning in the browser.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand"><b>venue-atlas</b><span id="subtitle">papers placed by what they are about</span></div>
+  <div class="controls">
+    <label>Venue <select id="venue" aria-label="Venue"></select></label>
+    <div id="years" class="chips" role="group" aria-label="Years"></div>
+    <label>Colour <select id="colour" aria-label="Colour by">
+      <option value="topic">topic</option><option value="year">year</option><option value="decision">oral / spotlight / poster</option>
+    </select></label>
+    <form id="search" class="search" role="search">
+      <input id="q" type="search" placeholder="Search titles, or by meaning" aria-label="Search" autocomplete="off">
+      <select id="mode" aria-label="Search by"><option value="words">words</option><option value="meaning">meaning</option></select>
+    </form>
+  </div>
+</header>
+<main>
+  <div id="stage">
+    <canvas id="map" aria-label="Map of the papers: each dot is a paper; nearby dots are about similar things"></canvas>
+    <div id="tip" role="tooltip" hidden></div>
+    <div id="status" aria-live="polite">Loading…</div>
+    <div class="hint">Drag to move · scroll or pinch to zoom · click a dot</div>
+  </div>
+  <aside id="panel" aria-live="polite">
+    <section id="paper" hidden></section>
+    <section id="results" hidden></section>
+    <section id="topics"></section>
+  </aside>
+</main>
+<footer>
+  <span id="about"></span>
+  <span>Built from each conference's public schedule data; abstracts are read to place the papers and are not kept.
+    Embeddings: <a href="https://huggingface.co/minishlab/potion-base-8M">potion-base-8M</a> (MIT), run in your browser for searches.
+    <a href="https://github.com/zch6a/venue-atlas">Source</a>.</span>
+</footer>
+<script type="module" src="app.js"></script>
+</body>
+</html>

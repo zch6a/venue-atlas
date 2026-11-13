@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+node_modules/
+# downloaded schedule files, and the built site data (built by the Pages workflow, not committed)
+.cache/
+site/data/
+site/model/

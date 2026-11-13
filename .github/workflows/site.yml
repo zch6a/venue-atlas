@@ -1,0 +1,55 @@
+name: Site
+# Monthly (and by hand): build the atlases and publish the site on GitHub Pages.
+# - The build job runs the tool with a read-only token. The conferences' schedule files and the model are restored from
+#   the cache (past years do not change), so a run downloads only what it has not got.
+# - The deploy job runs nothing of the project: it publishes the artifact the build uploaded.
+# Actions pinned to commits.
+on:
+  schedule: [{ cron: "23 5 3 * *" }]   # the 3rd of each month, 05:23 UTC
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency: site
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3; it has no moving major tag
+      - name: The schedule files and the model from earlier builds
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache
+          key: atlas-inputs-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: atlas-inputs-
+      - name: Build
+        env:
+          VENUE_ATLAS_HOME: .cache/model
+        run: |
+          uv run venue-atlas model
+          uv run venue-atlas build iclr neurips icml cvpr --out site --cache .cache/venue-atlas
+      - name: Keep the inputs for the next build
+        if: ${{ !cancelled() }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache
+          key: atlas-inputs-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
