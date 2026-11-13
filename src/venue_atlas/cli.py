@@ -7,7 +7,7 @@ venue-atlas search "diffusion for proteins" --atlas site --venue neurips   the c
 venue-atlas venues                             the venues and years it knows
 
 Each venue's accepted papers come from the conference's own virtual-site schedule file (one download per venue and
-year, kept in --cache). Abstracts are read to place the papers and are not written anywhere.
+year, kept in --cache); ACL, EMNLP and NAACL from the ACL Anthology's BibTeX (one download for all three). Abstracts are read to place the papers and are not written anywhere.
 """
 
 from __future__ import annotations

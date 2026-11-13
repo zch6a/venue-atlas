@@ -90,7 +90,7 @@ def write(atlas: Atlas, out: Path, built: str | None = None) -> dict[str, object
             "dim": int(atlas.vectors.shape[1]),
             "mean": [float(f"{v:.6g}") for v in atlas.mean],
         },  # fmt: skip
-        "sources": [url_for(atlas.venue, y) for y in years],
+        "sources": list(dict.fromkeys(url_for(atlas.venue, y) for y in years)),
         "count": len(p),
         "papers": {
             "title": [x.title for x in p],

@@ -31,7 +31,7 @@ jobs:
           VENUE_ATLAS_HOME: .cache/model
         run: |
           uv run venue-atlas model
-          uv run venue-atlas build iclr neurips icml cvpr --out site --cache .cache/venue-atlas
+          uv run venue-atlas build iclr neurips icml cvpr acl emnlp naacl --out site --cache .cache/venue-atlas
       - name: Keep the inputs for the next build
         if: ${{ !cancelled() }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

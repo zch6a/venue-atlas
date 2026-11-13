@@ -9,5 +9,7 @@ First release.
   named topics with each topic's count by year. Abstracts are read, not kept.
 - The site: the map, hover and click for a paper's links and its closest papers, topics with their share by year,
   search by words or by meaning (the query embedded in the browser).
+- ACL, EMNLP and NAACL (main conferences, 2021–2025) from the ACL Anthology's BibTeX with abstracts.
+- A topic's papers per year as a chart with the numbers as text, and its papers as a list; the map by keyboard.
 - `venue-atlas search`: the closest papers to a query, from a built atlas (`--json`).
 - A monthly GitHub workflow that builds the site with a read-only token and deploys it.

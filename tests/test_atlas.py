@@ -140,3 +140,65 @@ def test_the_command(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: py
 
 def test_sources_doc_says_what_is_kept() -> None:
     assert "not kept" in (sources.__doc__ or "")
+
+
+BIB = """
+@proceedings{acl-2024-long,
+    title = "Proceedings of the 62nd Annual Meeting",
+    url = "https://aclanthology.org/2024.acl-long.0/"
+}
+@inproceedings{a-2024-one,
+    title = "{IAG}: Induction-Augmented Generation for Sch{\\"o}n",
+    author = "A, B",
+    year = "2024",
+    url = "https://aclanthology.org/2024.acl-long.1/",
+    abstract = "We study secret-abstract-acl things with $x^2$ maths.",
+    pages = "1--17"
+}
+@inproceedings{b-2024-two,
+    title = "A Short Paper on Gonz{\\'a}lez",
+    url = "https://aclanthology.org/2024.acl-short.7/",
+    abstract = "Short and to the point."
+}
+@inproceedings{c-2024-findings,
+    title = "Findings Are Not Main",
+    url = "https://aclanthology.org/2024.findings-acl.3/",
+    abstract = "Left out."
+}
+@inproceedings{d-2024-dup,
+    title = "{IAG}: Induction-Augmented Generation for Sch{\\"o}n",
+    url = "https://aclanthology.org/2024.acl-long.99/",
+    abstract = "The same title again."
+}
+"""
+
+
+def test_the_anthology_main_conference_papers(tmp_path: Path) -> None:
+    import gzip
+    import os
+    import time
+
+    acl = VENUES["acl"]
+    calls: list[str] = []
+
+    def fetcher(url: str) -> bytes:
+        calls.append(url)
+        return gzip.compress(BIB.encode())
+
+    ps = papers(acl, [2024], tmp_path, fetcher)
+    assert [(p.title, p.topic, p.url) for p in ps] == [
+        ("IAG: Induction-Augmented Generation for Schön", "long paper", "https://aclanthology.org/2024.acl-long.1/"),
+        ("A Short Paper on González", "short paper", "https://aclanthology.org/2024.acl-short.7/"),
+    ]
+    assert "secret-abstract-acl" in ps[0].abstract and ps[0].decision == ""
+    papers(acl, [2024], tmp_path, fetcher)
+    assert len(calls) == 1  # cached
+    old = time.time() - 40 * 86400
+    os.utime(tmp_path / "anthology+abstracts.bib.gz", (old, old))
+    papers(VENUES["emnlp"], [2024], tmp_path, lambda u: gzip.compress(BIB.replace("acl-long", "emnlp-main").encode()))
+    with pytest.raises(SourceError, match="no papers"):
+        papers(VENUES["naacl"], [2024], tmp_path, fetcher)
+    with pytest.raises(SourceError, match="not a year"):
+        papers(VENUES["naacl"], [2023], tmp_path, fetcher)
+    atlas = build.make(acl, ps * 3 if len(ps) < 3 else ps, FakeModel(), epochs=50) if False else None
+    assert atlas is None

@@ -1,6 +1,7 @@
 """Accepted papers, from each conference's own website: the static file its virtual-conference site publishes for the
 schedule (`/static/virtual/data/<venue>-<year>-orals-posters.json`): one request per venue and year, with titles,
-abstracts, links and the conference's own topic for each paper.
+abstracts, links and the conference's own topic for each paper. The ACL Anthology's venues come from its BibTeX
+(see anthology.py).
 
 Abstracts are read to place the papers on the map, and are not kept: the atlas holds titles, links, years, the
 decision (oral, spotlight, poster) and the conference's topic.
@@ -16,6 +17,10 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .anthology import MAX_AGE_DAYS
+from .anthology import URL as ANTHOLOGY_URL
+from .anthology import entries as anthology_entries
+
 USER_AGENT = "venue-atlas (a paper map built from the conference's public schedule data)"
 MAX_BYTES = 200 * 1024 * 1024
 
@@ -26,9 +31,17 @@ class Venue:
     name: str
     host: str
     years: tuple[int, ...]
+    volumes: tuple[str, ...] = ()  # for the ACL Anthology: the volumes of a year's main conference ("acl-long")
+
+    @property
+    def anthology(self) -> bool:
+        return bool(self.volumes)
 
 
-# Years checked to answer on 2026-11-14 (HEAD requests); CVPR's site has the file from 2023.
+TRACKS = {"long": "long paper", "short": "short paper", "main": "main conference"}
+
+# Years checked to answer on 2026-11-14 (HEAD requests); CVPR's site has the file from 2023. NAACL has no 2023 (EACL's
+# year). The Anthology's venues: their main-conference volumes, not Findings or workshops.
 VENUES = {
     v.key: v
     for v in [
@@ -36,6 +49,9 @@ VENUES = {
         Venue("neurips", "NeurIPS", "neurips.cc", (2021, 2022, 2023, 2024, 2025)),
         Venue("icml", "ICML", "icml.cc", (2021, 2022, 2023, 2024, 2025)),
         Venue("cvpr", "CVPR", "cvpr.thecvf.com", (2023, 2024, 2025)),
+        Venue("acl", "ACL", "aclanthology.org", (2021, 2022, 2023, 2024, 2025), ("acl-long", "acl-short")),
+        Venue("emnlp", "EMNLP", "aclanthology.org", (2021, 2022, 2023, 2024, 2025), ("emnlp-main",)),
+        Venue("naacl", "NAACL", "aclanthology.org", (2021, 2022, 2024, 2025), ("naacl-long", "naacl-short", "naacl-main")),
     ]
 }
 
@@ -69,7 +85,41 @@ def _fetch(url: str) -> bytes:
 
 
 def url_for(venue: Venue, year: int) -> str:
+    if venue.anthology:
+        return ANTHOLOGY_URL
     return f"https://{venue.host}/static/virtual/data/{venue.key}-{year}-orals-posters.json"
+
+
+def anthology_raw(cache: Path | None = None, fetcher: Fetcher | None = None) -> bytes:
+    """The Anthology's BibTeX with abstracts (45 MB gzipped), from the cache if it is younger than MAX_AGE_DAYS."""
+    f = cache / "anthology+abstracts.bib.gz" if cache is not None else None
+    if f is not None and f.is_file() and time.time() - f.stat().st_mtime < MAX_AGE_DAYS * 86400:
+        return f.read_bytes()
+    try:
+        data = (fetcher or _fetch)(ANTHOLOGY_URL)
+    except OSError as e:
+        raise SourceError(f"{ANTHOLOGY_URL}: could not download ({getattr(e, 'code', None) or getattr(e, 'reason', e)})") from e
+    if f is not None:
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_bytes(data)
+    return data
+
+
+def parse_anthology(data: bytes, venue: Venue, years: list[int]) -> list[Paper]:
+    volumes = {f"{y}.{v}" for y in years for v in venue.volumes}
+    out = []
+    seen: set[str] = set()
+    for year, vol, number, title, abstract in anthology_entries(data, volumes):
+        key = norm_title(title)
+        if key in seen:
+            continue
+        seen.add(key)
+        link = f"https://aclanthology.org/{year}.{vol}.{number}/"
+        track = TRACKS.get(vol.rsplit("-", 1)[-1], "")
+        out.append(Paper(title, year, abstract, link, link, "", track, f"{year}.{vol}.{number}"))
+    if not out:
+        raise SourceError(f"{venue.name} {', '.join(map(str, years))}: no papers of its volumes in the Anthology's BibTeX")
+    return out
 
 
 def raw(venue: Venue, year: int, cache: Path | None = None, fetcher: Fetcher = _fetch) -> bytes:
@@ -180,10 +230,13 @@ def parse(data: bytes, venue: Venue, year: int) -> list[Paper]:
 
 
 def papers(venue: Venue, years: list[int], cache: Path | None = None, fetcher: Fetcher = _fetch, pause: float = 2.0) -> list[Paper]:
-    out: list[Paper] = []
-    for i, year in enumerate(years):
+    for year in years:
         if year not in venue.years:
             raise SourceError(f"{venue.name} {year}: not a year the atlas has ({', '.join(map(str, venue.years))})")
+    if venue.anthology:
+        return parse_anthology(anthology_raw(cache, fetcher), venue, years)
+    out: list[Paper] = []
+    for i, year in enumerate(years):
         cached = cache is not None and (cache / f"{venue.key}-{year}.json").is_file()
         if i and not cached:
             time.sleep(pause)  # one file per year, a little apart

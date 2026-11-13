@@ -26,10 +26,10 @@
 </header>
 <main>
   <div id="stage">
-    <canvas id="map" aria-label="Map of the papers: each dot is a paper; nearby dots are about similar things"></canvas>
+    <canvas id="map" tabindex="0" role="img" aria-label="Map of the papers: each dot is a paper; nearby dots are about similar things. Arrow keys move the map, plus and minus zoom, 0 resets. The topics and their papers are listed beside it."></canvas>
     <div id="tip" role="tooltip" hidden></div>
     <div id="status" aria-live="polite">Loading…</div>
-    <div class="hint">Drag to move · scroll or pinch to zoom · click a dot</div>
+    <div class="hint">Drag or arrow keys to move · scroll or +/− to zoom · click a dot</div>
   </div>
   <aside id="panel" aria-live="polite">
     <section id="paper" hidden></section>
@@ -39,7 +39,7 @@
 </main>
 <footer>
   <span id="about"></span>
-  <span>Built from each conference's public schedule data; abstracts are read to place the papers and are not kept.
+  <span>Built from each conference's public schedule data (the ACL venues: the ACL Anthology, CC BY 4.0); abstracts are read to place the papers and are not kept.
     Embeddings: <a href="https://huggingface.co/minishlab/potion-base-8M">potion-base-8M</a> (MIT), run in your browser for searches.
     <a href="https://github.com/zch6a/venue-atlas">Source</a>.</span>
 </footer>

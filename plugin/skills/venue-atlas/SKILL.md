@@ -1,6 +1,6 @@
 ---
 name: venue-atlas
-description: Find what a machine-learning conference (ICLR, NeurIPS, ICML 2021–2025; CVPR 2023–2025) published on a subject, its closest papers by meaning, and how topics grew or shrank by year, with venue-atlas. Use when the user asks which papers at a venue are about something, for related work at a conference, or for the trends of a venue's topics.
+description: Find what a machine-learning conference (ICLR, NeurIPS, ICML, ACL, EMNLP 2021–2025; CVPR 2023–2025; NAACL 2021–2025 but 2023) published on a subject, its closest papers by meaning, and how topics grew or shrank by year, with venue-atlas. Use when the user asks which papers at a venue are about something, for related work at a conference, or for the trends of a venue's topics.
 license: MIT
 compatibility: Needs Python 3.10+ and uv. Runs venue-atlas with uvx from GitHub (git+https://github.com/zch6a/venue-atlas). Building downloads the conferences' public schedule files and a 30 MB model once; searching an atlas already built is offline.
 metadata:

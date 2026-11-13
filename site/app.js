@@ -217,6 +217,7 @@ function drawLabels(w, h) {
     const x = sx[t] / n[t];
     const y = sy[t] / n[t];
     const half = ctx.measureText(label).width / 2 + 4;
+    if (x - half < 0 || x + half > w || y < 12 || y > h - 4) continue; // a label cut by the edge says nothing
     if (placed.some((b) => Math.abs(b.x - x) < b.half + half && Math.abs(b.y - y) < 15)) continue;
     placed.push({ x, y, half });
     ctx.lineWidth = 3;
@@ -336,9 +337,48 @@ function renderTopics() {
 function pickTopic(t) {
   state.topic = t;
   state.hits = null;
-  $("results").hidden = true;
+  const box = $("results");
+  if (t < 0) {
+    box.hidden = true;
+  } else {
+    showTopic(t, box);
+  }
   renderTopics();
   draw();
+}
+
+// A topic: its papers per year as a chart (with the numbers as text), and its papers as a list (the way to the papers
+// without the map, by keyboard or a screen reader).
+function showTopic(t, box) {
+  const a = state.atlas;
+  const p = a.papers;
+  const years = a.years.filter((y) => state.years.has(y));
+  const totals = Object.fromEntries(years.map((y) => [y, a.topics.reduce((s, x) => s + (x.count[y] || 0), 0)]));
+  const counts = years.map((y) => a.topics[t].count[y] || 0);
+  const peak = Math.max(...counts, 1);
+  const chart = el("div", { class: "trend", role: "img", "aria-label": years.map((y, k) => `${y}: ${counts[k]} papers, ${totals[y] ? ((100 * counts[k]) / totals[y]).toFixed(1) : 0}% of the year`).join("; ") });
+  years.forEach((y, k) => {
+    const bar = el("span", { class: "bar" });
+    bar.style.height = `${Math.max(2, (100 * counts[k]) / peak)}%`;
+    bar.style.background = topicColour(t);
+    const share = totals[y] ? ((100 * counts[k]) / totals[y]).toFixed(1) : "0";
+    chart.append(el("div", { class: "col" }, el("span", { class: "num" }, String(counts[k])), el("span", { class: "plot" }, bar), el("span", { class: "yr" }, String(y)), el("span", { class: "pct" }, `${share}%`)));
+  });
+  const members = [];
+  for (let i = 0; i < state.n; i++) if (p.topic[i] === t && visible(i)) members.push(i);
+  members.sort((x, y) => p.year[y] - p.year[x] || p.title[x].localeCompare(p.title[y]));
+  const list = el("ol", { class: "list" });
+  for (const i of members.slice(0, 100)) list.append(el("li", {}, el("button", { on: { click: () => select(i, true) } }, `${p.title[i]} (${p.year[i]})`)));
+  box.replaceChildren(
+    el("button", { class: "close", "aria-label": "Show all topics", on: { click: () => pickTopic(-1) } }, "×"),
+    el("h2", {}, "Topic"),
+    el("h3", {}, topicName(t)),
+    el("div", { class: "meta" }, `${members.length.toLocaleString()} papers in the years shown; papers per year, and their share of the year:`),
+    chart,
+    el("h2", {}, members.length > 100 ? `Papers (the latest 100 of ${members.length.toLocaleString()})` : "Papers"),
+    list,
+  );
+  box.hidden = false;
 }
 
 function showResults(order, scores, label) {
@@ -475,6 +515,31 @@ canvas.addEventListener("wheel", (e) => {
   state.view.k = k;
   draw();
 }, { passive: false });
+// the keyboard: arrows move the map, + and - zoom, 0 resets, Escape clears the selection and the search
+canvas.addEventListener("keydown", (e) => {
+  if (!state.atlas) return;
+  const step = e.shiftKey ? 120 : 40;
+  const moves = { ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] };
+  if (moves[e.key]) {
+    state.view.x += moves[e.key][0];
+    state.view.y += moves[e.key][1];
+  } else if (e.key === "+" || e.key === "=") {
+    state.view.k = Math.min(40, state.view.k * 1.25);
+  } else if (e.key === "-" || e.key === "_") {
+    state.view.k = Math.max(0.6, state.view.k / 1.25);
+  } else if (e.key === "0") {
+    state.view = { x: 0, y: 0, k: 1 };
+  } else if (e.key === "Escape") {
+    state.hits = null;
+    $("results").hidden = true;
+    select(-1);
+    pickTopic(-1);
+  } else {
+    return;
+  }
+  e.preventDefault();
+  draw();
+});
 window.addEventListener("resize", draw);
 $("colour").addEventListener("change", (e) => {
   state.colour = e.target.value;

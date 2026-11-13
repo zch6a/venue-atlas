@@ -47,3 +47,28 @@ Tests: 22 Python (doctests included) and 19 JS. ruff, ruff format, mypy clean.
 
 Next: polishing round 1 (the published site checked; keyboard and screen-reader use of the map; topic trends as a
 chart; ACL venues from the ACL Anthology).
+
+### 2026-11-14 — polishing round 1
+
+**ACL, EMNLP and NAACL**, from the ACL Anthology: its per-volume BibTeX has no abstracts (checked), so its full
+BibTeX with abstracts (`anthology+abstracts.bib.gz`, 45 MB, CC BY 4.0), one download for the three venues, kept for
+30 days (the Anthology corrects entries daily). Main conferences only: `acl-long`/`acl-short`, `emnlp-main`,
+`naacl-long`/`naacl-short` (and 2021's `naacl-main`); front matter (paper 0) left out; NAACL has no 2023. BibTeX's
+LaTeX (`Sch{\"o}n`, `{\ss}`, `--`, `\&`, ``` `` ```) becomes plain text. ACL 5,122 papers, EMNLP 5,798, NAACL 2,199;
+their topics read like the field (PEFT/LoRA at ACL from 9 papers in 2021 to 117 in 2025).
+
+**A topic's trend, and the map without the map**: clicking a topic shows its papers per year as a chart whose numbers
+are text (and an aria label giving each year's count and share) and the list of its papers (the latest 100). With
+the topics, the search results and the neighbours already lists of buttons, every paper can be reached by keyboard or
+screen reader. The map takes focus (an outline), arrow keys move it, + and − zoom, 0 resets, Escape clears; checked
+by dispatching keys and comparing the canvas before and after.
+
+**The site at phone width** (375 px): the topic panel had no height (the main area was held to the window's height):
+fixed, the map at 62 % of the height with the topics below it. Topic labels cut by the map's edge are not drawn. The
+footer names the Anthology as the ACL venues' source.
+
+Tests: 24 Python (an Anthology file with front matter, long, short, Findings and a repeated title; the cache's age) and
+19 JS. ruff, ruff format, mypy clean.
+
+Next: polishing round 2 (an independent review of the code; the social card; the published site with all seven
+venues checked).

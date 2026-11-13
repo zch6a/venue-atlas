@@ -2,8 +2,8 @@
 
 # venue-atlas
 
-**What a conference was about, year by year.** Every paper accepted at ICLR, NeurIPS, ICML and CVPR, placed on a
-map by what it is about, grouped into named topics with each topic's share of every year, and searchable by words or
+**What a conference was about, year by year.** Every paper accepted at ICLR, NeurIPS, ICML, CVPR, ACL, EMNLP and
+NAACL, placed on a map by what it is about, grouped into named topics with each topic's share of every year, and searchable by words or
 by meaning, in your browser.
 
 <a href="https://github.com/zch6a/venue-atlas/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/zch6a/venue-atlas/actions/workflows/ci.yml/badge.svg"></a>
@@ -26,19 +26,30 @@ by meaning, in your browser.
 | NeurIPS | 2021–2025 | 19,210 |
 | ICML | 2021–2025 | 10,253 |
 | CVPR | 2023–2025 | 7,946 |
+| ACL | 2021–2025 | 5,122 |
+| EMNLP | 2021–2025 | 5,798 |
+| NAACL | 2021, 2022, 2024, 2025 | 2,199 |
+
+The ACL venues are their main conferences (long and short papers; not Findings or workshops); NAACL had no 2023
+(EACL's year).
 
 Pick a venue and the years, hover over a dot for its title, click it for its links and the eight papers closest to
 it in meaning. Each topic is named by the words that set its papers apart, with a bar for its share of every year:
 at NeurIPS (as built on 2026-11-14), the chain-of-thought topic went from 19 papers in 2021 to 248 in 2025, and the
 one on LLMs and retrieval-augmented generation from 1 to 181. Search titles by words, or switch to *meaning*: the query is embedded in your browser with the
 same model the map was built with, and the closest papers light up (the model, 7 MB, loads on the first such search).
+Click a topic for its papers per year (a chart, with the numbers as text) and the list of its papers. The map takes
+the keyboard too (arrow keys move it, + and − zoom, 0 resets, Escape clears); the topics, their papers and the
+search results are lists of links, readable without the map.
 
 ## How it is made
 
 - **The papers**: each conference's own virtual-site schedule file (`/static/virtual/data/<venue>-<year>-orals-posters.json`),
   one download per venue and year: titles, abstracts, the decision and the conference's topic. An oral listed as its
   talk and its poster is one paper; sessions and talks are left out. **Abstracts are read to place the papers and
-  are not kept**: the site holds titles, links, years, decisions, topics and the map.
+  are not kept**: the site holds titles, links, years, decisions, topics and the map. ACL, EMNLP and NAACL come from
+  the [ACL Anthology](https://aclanthology.org)'s BibTeX with abstracts (one 45 MB download for all of them, CC BY
+  4.0), their long and short papers told apart by volume.
 - **Meaning**: [potion-base-8M](https://huggingface.co/minishlab/potion-base-8M) (MIT), a static
   [Model2Vec](https://github.com/MinishLab/model2vec) embedding model run with numpy, pinned by revision and SHA-256;
   each paper is its title and abstract, the venue's mean taken away so that neighbours are found by what sets papers
@@ -73,7 +84,7 @@ agent or a script).
   two papers that say the same thing in other words can land apart. Topic names are the topic's distinctive words,
   not a summary written by anyone.
 - The map keeps neighbours together and spreads topics out, but the distances between far-apart regions mean little.
-- It covers the venues whose sites publish this file (CVPR from 2023). A conference that changes its site's format
+- It covers the venues whose sites publish this file (CVPR from 2023), and the Anthology's main conferences. A conference that changes its site's format
   needs a new reader; the build says which file it could not read.
 - Papers are as the schedule lists them: workshop papers are not in it; titles are the conference's.
 
