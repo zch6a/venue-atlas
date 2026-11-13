@@ -50,6 +50,10 @@ uvx --from git+https://github.com/zch6a/venue-atlas@v0 venue-atlas search "diffu
 - 只覆盖官网发布了这个文件的会议（CVPR 从 2023 年起），以及 Anthology 收录的正会。会议网站改了格式就需要新的读取代码；构建时会说明哪个文件读不了。
 - 论文以来源为准：不含 workshop 论文，标题用会议给的写法（其中的 LaTeX 显示为 Unicode）。有些论文在来源里没有论文链接（ICLR 和 NeurIPS 约八分之一，ICML 约五分之一），可以从它的会议页面找到。
 
+## 属于 research-kit
+
+这是 13 个开源科研工具之一，覆盖从读论文到论文发表之后。全部工具按科研流程的介绍，以及安装它们技能的 Claude Code 插件市场，见 [research-kit](https://github.com/zch6a/research-kit) · [网站](https://zch6a.github.io/research-kit/)。
+
 ## 许可证
 
 MIT。嵌入模型 potion-base-8M 由 MinishLab 发布，MIT 许可。标题和链接属于各会议；ACL、EMNLP、NAACL 的来自 ACL Anthology，CC BY 4.0。

@@ -199,3 +199,8 @@ release from the CHANGELOG section and points v0 at it.
 ### 2026-11-14 — after the release
 
 The plugin's description named four venues of seven (plugin.json): fixed.
+
+### 2026-11-14 — a link to research-kit
+
+Both READMEs now end (before the licence) with a short section pointing to research-kit, the toolkit's front door: all
+thirteen tools in the order of the work, and one Claude Code plugin marketplace for their skills. Documentation only.
