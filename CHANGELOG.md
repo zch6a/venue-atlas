@@ -14,5 +14,7 @@ First release.
 - Every paper links to its conference page, its paper (or PDF) and its code or project page when
   the source has them; LaTeX in titles shown as Unicode.
 - The address names the venue and the paper shown, so a link opens the same view.
+- `venue-atlas build` writes the page next to the data, so a folder it builds is a whole site; numpy is the only
+  dependency (the model's tokenizer is plain Python, checked against Hugging Face's `tokenizers`).
 - `venue-atlas search`: the closest papers to a query, from a built atlas (`--json`).
 - A monthly GitHub workflow that builds the site with a read-only token and deploys it.

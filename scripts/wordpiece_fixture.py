@@ -1,6 +1,10 @@
 """Writes tests/fixtures/wordpiece.json: test strings, the tokens potion-base-8M's own tokenizer gives them, and the
 part of the vocabulary those tokens are (enough for WordPiece's longest match to give the same tokens). The site's
-tokenizer is tested against it. Needs the model (`venue-atlas model`); run when the strings or the model change."""
+tokenizer and the Python one (venue_atlas.wordpiece) are tested against it. Needs the model (`venue-atlas model`) and
+Hugging Face's `tokenizers`; run when the strings or the model change:
+
+    uv run --with tokenizers python scripts/wordpiece_fixture.py
+"""
 
 from __future__ import annotations
 
@@ -10,7 +14,7 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(root / "src"))
-from venue_atlas.embed import load  # noqa: E402
+from venue_atlas.embed import model_dir  # noqa: E402
 
 STRINGS = [
     "diffusion models for text-to-image generation",
@@ -30,23 +34,29 @@ STRINGS = [
     "  leading and trailing spaces  ",
     "control\u0007chars​and zero-width",
     "Ελληνικά και русский текст",
+    "ΣΟΦΟΣ λόγος ΟΔΟΣ",  # a word's last capital sigma: lowered one character at a time, so σ, not ς
+    "a [MASK] and [CLS] token, not [mask]",  # special tokens are found in the text as it is
+    "\U00020000\U00020001 ext-B and 中文",  # CJK beyond the BMP is set apart too
+    "\x0b\x0cvertical\ufefftab\u2028line \ue000private \u0378unassigned",
     "",
 ]
 
 
 def main() -> None:
-    model = load()
-    vocab = model.tokenizer.get_vocab()
+    from tokenizers import Tokenizer
+
+    tokenizer = Tokenizer.from_file(str(model_dir() / "tokenizer.json"))
+    vocab = tokenizer.get_vocab()
     by_id = {i: t for t, i in vocab.items()}
     cases = []
     used: dict[str, int] = {}
     for s in STRINGS:
-        enc = model.tokenizer.encode(s, add_special_tokens=False)
+        enc = tokenizer.encode(s, add_special_tokens=False)
         tokens = [by_id[i] for i in enc.ids]
         for t in tokens:
             used[t] = vocab[t]
         cases.append({"text": s, "tokens": tokens})
-    unk = model.unk
+    unk = tokenizer.token_to_id("[UNK]")
     used[by_id[unk]] = unk
     out = {"model": "potion-base-8M", "unk": by_id[unk], "vocab": dict(sorted(used.items(), key=lambda kv: kv[1])), "cases": cases}
     path = root / "tests" / "fixtures" / "wordpiece.json"

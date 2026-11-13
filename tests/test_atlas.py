@@ -130,6 +130,7 @@ def test_the_command(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: py
     capsys.readouterr()
     index = json.loads((out / "data" / "index.json").read_text(encoding="utf-8"))
     assert [d["venue"] for d in index] == ["iclr", "icml"]  # the earlier venue kept, in the list's order
+    assert all((out / name).is_file() for name in ("index.html", "app.js", "style.css", "tokenizer.js"))  # a whole site
     assert cli.main(["search", "regret bandit exploration bound", "--atlas", str(out), "--venue", "iclr", "-k", "3", "--json"]) == 0
     rows = json.loads(capsys.readouterr().out)
     assert len(rows) == 3 and all("bandits" in r["title"] for r in rows)
@@ -204,6 +205,16 @@ def test_the_anthology_main_conference_papers(tmp_path: Path) -> None:
     assert atlas is None
 
 
+def test_the_python_tokenizer_gives_the_real_tokenizers_tokens() -> None:
+    from venue_atlas.wordpiece import WordPiece
+
+    fixture = json.loads((Path(__file__).parent / "fixtures" / "wordpiece.json").read_text(encoding="utf-8"))
+    vocab = {t: int(i) for t, i in fixture["vocab"].items()}
+    tok = WordPiece(vocab, fixture["unk"], [t for t in ("[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]") if t in vocab])
+    for case in fixture["cases"]:
+        assert tok.tokens(case["text"]) == case["tokens"], case["text"]
+
+
 def test_links_paper_page_and_project() -> None:
     records = [
         {"name": "Old Style Entry", "abstract": "x " * 50, "id": "3238", "eventtype": "Poster", "paper_pdf_url": "https://openreview.net/pdf?id=abc"},
@@ -264,3 +275,9 @@ def test_review_round_2(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys:
     (tmp_path / "site" / "data" / "iclr.json").write_text("{}", encoding="utf-8")
     assert cli.main(["search", "regret", "--atlas", str(tmp_path / "site"), "--venue", "iclr"]) == 2
     assert "build it again" in capsys.readouterr().err
+    # round 4: a venue not built, --out a file
+    assert cli.main(["search", "regret", "--atlas", str(tmp_path / "nowhere"), "--venue", "cvpr"]) == 2
+    assert "build it first (venue-atlas build cvpr" in capsys.readouterr().err
+    (tmp_path / "a-file").write_text("x", encoding="utf-8")
+    assert cli.main(["build", "iclr", "--out", str(tmp_path / "a-file")]) == 2
+    assert "a file, not a folder" in capsys.readouterr().err

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -122,7 +123,7 @@ def write_model(model: StaticModel, out: Path) -> None:
     d.mkdir(parents=True, exist_ok=True)
     table = model.token_table()
     q, scale = quantize(table)
-    vocab = model.tokenizer.get_vocab()
+    vocab = model.tokenizer.vocab
     tokens = [""] * len(vocab)
     for t, i in vocab.items():
         tokens[i] = t
@@ -130,6 +131,31 @@ def write_model(model: StaticModel, out: Path) -> None:
             "lowercase": True, "prefix": "##", "max_chars": 100, "tokens": tokens, "scale": [float(f"{s:.6g}") for s in scale]}  # fmt: skip
     (d / "vocab.json").write_text(json.dumps(meta, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     (d / "tokens.vec").write_bytes(q.tobytes())
+
+
+PAGE = ("index.html", "app.js", "style.css", "tokenizer.js")
+
+
+def page_folder() -> Path | None:
+    """Where the site's page files are: inside the installed package (the wheel carries them), or the repository's
+    site/ folder when run from a checkout."""
+    for folder in (Path(__file__).with_name("site"), Path(__file__).resolve().parents[2] / "site"):
+        if all((folder / name).is_file() for name in PAGE):
+            return folder
+    return None
+
+
+def write_page(out: Path) -> bool:
+    """The page itself (index.html and its scripts) into out/, so a built folder is a whole site. Nothing is copied
+    when out/ is the folder the page comes from. False when this installation has no page files."""
+    folder = page_folder()
+    if folder is None:
+        return False
+    out.mkdir(parents=True, exist_ok=True)
+    if folder.resolve() != out.resolve():
+        for name in PAGE:
+            shutil.copyfile(folder / name, out / name)
+    return True
 
 
 def write_index(out: Path, docs: list[dict[str, object]]) -> None:

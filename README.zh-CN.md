@@ -25,7 +25,7 @@
 ## 怎么做的
 
 - **论文**来自各会议官网虚拟会场的日程文件（`/static/virtual/data/<会议>-<年份>-orals-posters.json`），每个会议每年下载一次，里面有标题、摘要、录用类型和会议自己的分类。同一篇口头报告论文会以报告和海报各列一次，这里合并为一篇；分会场和特邀报告不算论文。**摘要只用来给论文定位，不保存**：网站里只有标题、链接、年份、录用类型、主题和地图坐标。ACL、EMNLP、NAACL 来自 [ACL Anthology](https://aclanthology.org) 带摘要的 BibTeX（一次下载 45 MB，覆盖全部三个会议，CC BY 4.0），按卷区分长文和短文。
-- **意思**用 [potion-base-8M](https://huggingface.co/minishlab/potion-base-8M)（MIT 许可）计算。它是一个静态的 [Model2Vec](https://github.com/MinishLab/model2vec) 嵌入模型，用 numpy 运行，按版本和 SHA-256 固定。每篇论文取标题加摘要，并减去该会议的平均向量，邻居就按论文之间的差别来找。
+- **意思**用 [potion-base-8M](https://huggingface.co/minishlab/potion-base-8M)（MIT 许可）计算。它是一个静态的 [Model2Vec](https://github.com/MinishLab/model2vec) 嵌入模型，用 numpy 运行（分词器用纯 Python 实现，在全部 12 万条标题和摘要上与 Hugging Face 的分词结果完全一致），按版本和 SHA-256 固定。每篇论文取标题加摘要，并减去该会议的平均向量，邻居就按论文之间的差别来找。
 - **地图**：每篇论文取 20 个最近邻，用 UMAP 的做法铺到平面上（先建模糊近邻图，再沿边相互吸引、随机点对相互排斥），用 numpy 写成一个小而确定的版本。
 - **主题**：对嵌入向量做 k-means（大约 √n / 2 个主题，最多 48 个），论文很少的主题并入最近的主题，再按标题和摘要做基于类的 TF-IDF 起名（去掉 LaTeX 公式）。
 - **浏览器里的搜索**：模型的 token 向量和论文向量都以 int8 放在网站里。浏览器端的 WordPiece 分词器用 Python 分词器的输出做测试，搜索的前几名和 `venue-atlas search` 一致。

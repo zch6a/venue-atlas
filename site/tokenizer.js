@@ -1,27 +1,33 @@
-// BERT's uncased WordPiece tokenizer, as Hugging Face's `tokenizers` runs it for potion-base-8M (BertNormalizer with
-// lowercase and accents stripped, BertPreTokenizer, WordPiece with "##" continuations, 100 characters at most per
-// word), so that a search typed in the browser gets the same tokens the atlas was built with. Tests compare it with
-// the Python tokenizer's output (tests/fixtures/wordpiece.json).
+// BERT's uncased WordPiece tokenizer, as Hugging Face's `tokenizers` runs it for potion-base-8M (its special tokens
+// found in the raw text; BertNormalizer with lowercase and accents stripped; BertPreTokenizer; WordPiece with "##"
+// continuations, 100 characters at most per word), so that a search typed in the browser gets the same tokens the
+// atlas was built with. Tests compare it with the real tokenizer's output (tests/fixtures/wordpiece.json), as they do
+// the Python one (src/venue_atlas/wordpiece.py).
 
-const CJK = /[一-鿿㐀-䶿豈-﫿]|[\uD840-\uD868][\uDC00-\uDFFF]|\uD869[\uDC00-\uDEDF]|[\uD86A-\uD86C][\uDC00-\uDFFF]|\uD86D[\uDC00-\uDF3F]|\uD87E[\uDC00-\uDE1F]/gu;
-const CONTROL = /[\p{Cc}\p{Cf}]/u;
+const CJK = /[\u{4E00}-\u{9FFF}\u{3400}-\u{4DBF}\u{20000}-\u{2A6DF}\u{2A700}-\u{2B73F}\u{2B740}-\u{2B81F}\u{2B820}-\u{2CEAF}\u{F900}-\u{FAFF}\u{2F800}-\u{2FA1F}]/gu;
+// dropped: control, format and private-use characters but tab, newline and return (an unassigned one stays)
+const CONTROL = /[\p{Cc}\p{Cf}\p{Co}]/u;
+const SPACE = /[\p{Zs}\p{Zl}\p{Zp}]/u;
 const MARK = /\p{Mn}/gu;
 const PUNCT = /[!-\/:-@\[-`{-~]|\p{P}/u;
+// special tokens, found in the text as it is, before it is normalized
+const SPECIAL = /(\[PAD\]|\[UNK\]|\[CLS\]|\[SEP\]|\[MASK\])/;
 
 /** @param {string} text @returns {string} */
 export function normalize(text) {
   let out = "";
   for (const ch of text) {
     if (ch === "\u0000" || ch === "�") continue;
-    if (ch === "\t" || ch === "\n" || ch === "\r" || /\s/u.test(ch)) {
+    if (ch === "\t" || ch === "\n" || ch === "\r") {
       out += " ";
       continue;
     }
-    if (CONTROL.test(ch)) continue;
-    out += ch;
+    if (CONTROL.test(ch)) continue; // before the spaces: \v and \f are dropped, not made spaces
+    out += SPACE.test(ch) ? " " : ch;
   }
   out = out.replace(CJK, (c) => ` ${c} `);
-  return out.normalize("NFD").replace(MARK, "").toLowerCase();
+  // lowered one character at a time, as tokenizers does: toLowerCase() alone makes a word's last Σ a final ς
+  return out.normalize("NFD").replace(MARK, "").replaceAll("Σ", "σ").toLowerCase();
 }
 
 /** @param {string} text @returns {string[]} the words: split at spaces, and every punctuation mark on its own */
@@ -75,6 +81,27 @@ export function wordpiece(word, vocab, unk, maxChars = 100) {
 }
 
 /**
+ * The token ids of a text, the unknown token included (as the real tokenizer gives them).
+ * @param {string} text
+ * @param {Map<string, number>} vocab
+ * @param {number} unk
+ * @returns {number[]}
+ */
+export function tokenize(text, vocab, unk) {
+  const ids = [];
+  text.split(SPECIAL).forEach((part, k) => {
+    if (k % 2) {
+      const id = vocab.get(part);
+      if (id !== undefined) ids.push(id);
+      else for (const word of pretokenize(normalize(part))) ids.push(...wordpiece(word, vocab, unk));
+    } else if (part) {
+      for (const word of pretokenize(normalize(part))) ids.push(...wordpiece(word, vocab, unk));
+    }
+  });
+  return ids;
+}
+
+/**
  * The token ids of a text, the unknown token dropped (as the atlas's embeddings drop it).
  * @param {string} text
  * @param {Map<string, number>} vocab
@@ -82,9 +109,6 @@ export function wordpiece(word, vocab, unk, maxChars = 100) {
  * @returns {number[]}
  */
 export function encode(text, vocab, unk) {
-  const ids = [];
-  for (const word of pretokenize(normalize(text))) {
-    for (const id of wordpiece(word, vocab, unk)) if (id !== unk) ids.push(id);
-  }
-  return ids;
+  // the first 512 tokens, as the atlas's were (its model's max_length)
+  return tokenize(text, vocab, unk).slice(0, 512).filter((id) => id !== unk);
 }

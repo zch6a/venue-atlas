@@ -1,4 +1,5 @@
-"""Embeddings with a static Model2Vec model (potion-base-8M), run with numpy and Hugging Face's `tokenizers`; the same
+"""Embeddings with a static Model2Vec model (potion-base-8M), run with numpy and its WordPiece tokenizer in plain
+Python (venue_atlas.wordpiece, checked against Hugging Face's `tokenizers` on 120,000 titles and abstracts); the same
 model is shipped to the site (its token vectors as int8) so that a search typed in the browser is embedded there,
 the same way.
 
@@ -17,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+
+from .wordpiece import WordPiece, from_tokenizer_json
 
 
 @dataclass(frozen=True)
@@ -115,12 +118,10 @@ class StaticModel:
     model says so), averaged and normalized."""
 
     def __init__(self, path: Path):
-        from tokenizers import Tokenizer
-
         self.path = Path(path)
         try:
             tensors = read_safetensors(self.path / "model.safetensors")
-            self.tokenizer = Tokenizer.from_file(str(self.path / "tokenizer.json"))
+            self.tokenizer: WordPiece = from_tokenizer_json(json.loads((self.path / "tokenizer.json").read_text(encoding="utf-8")))
             config = json.loads((self.path / "config.json").read_text(encoding="utf-8"))
         except (OSError, ValueError) as e:
             raise EmbedError(f"the model in {self.path} could not be loaded ({e}); download it again") from e
@@ -133,14 +134,11 @@ class StaticModel:
         self.normalize = bool(config.get("normalize", True))
         self.max_length = int(config.get("max_length") or 512)
         self.dim = int(emb.shape[1])
-        model = json.loads(self.tokenizer.to_str())["model"]
-        self.unk = self.tokenizer.token_to_id(model["unk_token"]) if model.get("unk_token") else None
-        self.tokenizer.no_padding()
-        self.tokenizer.enable_truncation(self.max_length)
+        self.unk = self.tokenizer.unk
 
     def token_table(self) -> np.ndarray:
         """Each token id's vector, mapped and weighted: what a token adds to a text's mean (float32, vocab × dim)."""
-        n = self.tokenizer.get_vocab_size()
+        n = max(self.tokenizer.vocab.values()) + 1
         ids = np.arange(n)
         rows = self.mapping[ids] if self.mapping is not None else ids
         table = np.asarray(self.embeddings[rows], dtype=np.float32)
@@ -149,7 +147,9 @@ class StaticModel:
         return table
 
     def ids(self, texts: list[str]) -> list[list[int]]:
-        return [[t for t in enc.ids if t != self.unk] for enc in self.tokenizer.encode_batch(texts, add_special_tokens=False)]
+        """Each text's token ids: the first max_length tokens (the unknown token counted, as tokenizers truncates),
+        then the unknown token dropped."""
+        return [[t for t in self.tokenizer.ids(text)[: self.max_length] if t != self.unk] for text in texts]
 
     def encode(self, texts: list[str], batch: int = 512) -> np.ndarray:
         table = self.token_table()

@@ -1,7 +1,7 @@
 """venue-atlas: maps of the papers accepted at a conference, placed by meaning and grouped into topics.
 
 venue-atlas model                              download the embedding model (30 MB, pinned, once)
-venue-atlas build iclr neurips --out site      build the atlases (the site's data) for these venues, all years
+venue-atlas build iclr neurips --out site      build a site (the page and the atlases) for these venues, all years
 venue-atlas build icml --years 2024,2025       some years only
 venue-atlas search "diffusion for proteins" --atlas site --venue neurips   the closest papers, from a built atlas
 venue-atlas venues                             the venues and years it knows
@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 
 from . import __version__
-from .build import centre, make, venues_from, write, write_index, write_model
+from .build import centre, make, venues_from, write, write_index, write_model, write_page
 from .embed import EmbedError, download, load
 from .sources import VENUES, SourceError, papers
 
@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
     b = sub.add_parser("build", help="build atlases into a site folder")
     b.add_argument("venues", nargs="+", choices=sorted(VENUES), metavar="VENUE", help=f"one or more of {', '.join(VENUES)}")
     b.add_argument("--years", type=_years, help="these years only (default: all it knows)")
-    b.add_argument("--out", type=Path, default=Path("site"), help="the site folder to write data/ and model/ into (default: site)")
+    b.add_argument("--out", type=Path, default=Path("site"), help="the site folder to write the page, data/ and model/ into (default: site)")
     b.add_argument("--cache", type=Path, default=Path(".cache/venue-atlas"), help="where the downloaded schedule files are kept")
     b.add_argument("--seed", type=int, default=0, help="the layout's and topics' random seed (default 0)")
     s = sub.add_parser("search", help="the papers closest in meaning to a query, from a built atlas")
@@ -72,9 +72,14 @@ def main(argv: list[str] | None = None) -> int:
     except (EmbedError, SourceError, ValueError, OSError) as e:
         print(f"venue-atlas: {e}", file=sys.stderr)
         return 2
+    except KeyboardInterrupt:
+        print("venue-atlas: stopped", file=sys.stderr)
+        return 130
 
 
 def _build(args: argparse.Namespace) -> int:
+    if args.out.exists() and not args.out.is_dir():
+        raise ValueError(f"--out {args.out}: a file, not a folder")  # said now, not after the downloads
     model = load()
     docs = []
     index_file = args.out / "data" / "index.json"
@@ -100,7 +105,10 @@ def _build(args: argparse.Namespace) -> int:
             docs.append(d)
     order = list(VENUES)
     write_index(args.out, sorted(docs, key=lambda d: order.index(str(d["venue"]))))
-    print(f"wrote {args.out.as_posix()}/data and {args.out.as_posix()}/model")
+    page = write_page(args.out)
+    print(f"wrote {args.out.as_posix()}/data and {args.out.as_posix()}/model" + (" and the page" if page else ""))
+    if not page:
+        print("venue-atlas: this installation has no page files (index.html); copy site/ from the repository", file=sys.stderr)
     return 0
 
 
@@ -108,6 +116,8 @@ def _search(args: argparse.Namespace) -> int:
     if args.k < 1:
         raise ValueError("-k must be 1 or more")
     path = args.atlas / "data" / f"{args.venue}.json"
+    if not path.is_file() or not path.with_suffix(".vec").is_file():
+        raise ValueError(f"no {VENUES[args.venue].name} atlas in {args.atlas}: build it first (venue-atlas build {args.venue} --out {args.atlas})")
     try:
         doc = json.loads(path.read_text(encoding="utf-8"))
         dim = int(doc["model"]["dim"])

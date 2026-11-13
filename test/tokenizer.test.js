@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { encode, normalize, pretokenize, wordpiece } from "../site/tokenizer.js";
+import { encode, tokenize } from "../site/tokenizer.js";
 
 const fixture = JSON.parse(readFileSync(new URL("../tests/fixtures/wordpiece.json", import.meta.url), "utf8"));
 const vocab = new Map(Object.entries(fixture.vocab).map(([t, i]) => [t, Number(i)]));
@@ -12,9 +12,7 @@ const byId = new Map([...vocab].map(([t, i]) => [i, t]));
 
 for (const c of fixture.cases) {
   test(`same tokens as the Python tokenizer: ${JSON.stringify(c.text).slice(0, 60)}`, () => {
-    const tokens = [];
-    for (const word of pretokenize(normalize(c.text))) for (const id of wordpiece(word, vocab, unk)) tokens.push(byId.get(id));
-    assert.deepEqual(tokens, c.tokens);
+    assert.deepEqual(tokenize(c.text, vocab, unk).map((id) => byId.get(id)), c.tokens);
   });
 }
 

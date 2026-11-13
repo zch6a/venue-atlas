@@ -51,7 +51,8 @@ search results are lists of links, readable without the map.
   the [ACL Anthology](https://aclanthology.org)'s BibTeX with abstracts (one 45 MB download for all of them, CC BY
   4.0), their long and short papers told apart by volume.
 - **Meaning**: [potion-base-8M](https://huggingface.co/minishlab/potion-base-8M) (MIT), a static
-  [Model2Vec](https://github.com/MinishLab/model2vec) embedding model run with numpy, pinned by revision and SHA-256;
+  [Model2Vec](https://github.com/MinishLab/model2vec) embedding model run with numpy (its tokenizer in plain Python, the same
+  tokens as Hugging Face's on all 120,000 titles and abstracts), pinned by revision and SHA-256;
   each paper is its title and abstract, the venue's mean taken away so that neighbours are found by what sets papers
   apart.
 - **The map**: the 20 nearest neighbours of each paper, laid out in the plane the way UMAP does (a fuzzy neighbour

@@ -1,12 +1,12 @@
 [project]
 name = "venue-atlas"
 version = "0.1.0"
-description = "Maps of the papers accepted at ICLR, NeurIPS, ICML and CVPR: placed by meaning, grouped into named topics with their share by year, searchable by words or by meaning in the browser. A static site, built from each conference's public schedule data; abstracts are not kept."
+description = "Maps of the papers accepted at ICLR, NeurIPS, ICML, CVPR, ACL, EMNLP and NAACL: placed by meaning, grouped into named topics with their share by year, searchable by words or by meaning in the browser. A static site, built from each conference's public schedule data; abstracts are not kept."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [{ name = "zch6a" }]
-keywords = ["research", "papers", "conference", "map", "embeddings", "topics", "iclr", "neurips", "icml", "cvpr", "static-site"]
+keywords = ["research", "papers", "conference", "map", "embeddings", "topics", "iclr", "neurips", "icml", "cvpr", "acl", "emnlp", "naacl", "static-site"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -17,7 +17,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Typing :: Typed",
 ]
-dependencies = ["numpy>=1.24", "tokenizers>=0.15"]
+dependencies = ["numpy>=1.24"]
 
 [project.urls]
 Homepage = "https://github.com/zch6a/venue-atlas"
@@ -33,6 +33,12 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/venue_atlas"]
+
+[tool.hatch.build.targets.wheel.force-include]  # the page, so `venue-atlas build` writes a whole site
+"site/index.html" = "venue_atlas/site/index.html"
+"site/app.js" = "venue_atlas/site/app.js"
+"site/style.css" = "venue_atlas/site/style.css"
+"site/tokenizer.js" = "venue_atlas/site/tokenizer.js"
 
 [tool.hatch.build.targets.sdist]
 exclude = ["docs/", "site/data/", "site/model/"]

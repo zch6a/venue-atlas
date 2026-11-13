@@ -132,3 +132,40 @@ Tests: 28 Python and 19 JS. ruff, ruff format, mypy clean.
 
 Next: polishing round 4 (engineering: a clean install from the wheel, the workflow's permissions and pins, dependency
 audit; the CLI's edge cases).
+
+### 2026-11-14 — polishing round 4
+
+**The README's own recipe did not make a site**: `uvx --from git+… venue-atlas build … --out site`, then
+`python -m http.server --directory site`, gave a folder with `data/` and `model/` and no page (the page files were only
+in the repository), so the server showed a directory listing. Now the wheel carries the page (`venue_atlas/site/`) and
+`build` copies it next to the data (not when the folder it writes is the repository's own `site/`); checked by building
+the sdist, the wheel from it, installing it into a clean Python 3.10 environment and building NAACL 2025: the site
+opens and searches. A one-year atlas said “2025–2025”; now “2025”. The package's description named four venues of seven.
+
+**numpy is the only dependency**: `tokenizers` brought about fifteen packages (huggingface-hub, httpx2, hf-xet, …) to
+split text into WordPiece tokens. `venue_atlas/wordpiece.py` does it in plain Python (special tokens found in the raw
+text, BertNormalizer, BertPreTokenizer, WordPiece; cached per word, ASCII text without the Unicode tables), and
+`scripts/tokenizer_check.py` compares it with `tokenizers`: on all 120,397 titles and abstracts of the seven venues
+(15.9 million tokens) every text's ids are the same (8 s against 9.5 s). The check found what the fixture had
+not: `tokenizers` keeps unassigned code points and drops private-use ones, and lowers one character at a time (a
+word's last Σ becomes σ, not ς as `str.lower()` and JavaScript's `toLowerCase()` make it); it finds `[MASK]` and the
+other special tokens in the text before normalizing it. The site's tokenizer had the same three differences, and a
+fourth of its own: its CJK pattern, surrogate pairs under the `u` flag, never matched a character beyond the BMP. All
+fixed, the fixture has four more cases (both tokenizers are tested against it: 23 JS tests, and a new Python test).
+A rebuild of the seven venues with the new tokenizer gives byte-identical vectors and model files, and the browser's
+top 5 for a query is the command line's.
+
+**The command line**: `search` on a venue not built said `[Errno 2] No such file…`, now “no CVPR atlas in site: build
+it first (venue-atlas build cvpr --out site)”; `--out` naming a file failed with a raw Windows error after loading the
+model, now said first; Ctrl-C stops with a line, not a traceback (exit 130).
+
+**Engineering**: `pip-audit` on the locked dependencies: no known vulnerabilities. CI runs `uv run --locked` (a lock that
+no longer matches `pyproject.toml` fails at once, not in the monthly build), and a new job builds the sdist and the
+wheel from it, checks that the wheel carries the page and that a clean install's only requirement is numpy; every job
+of the three workflows has a timeout. Pins and permissions checked: actions pinned to commits, read-only tokens, the
+Pages and release jobs that can write run nothing of the project.
+
+Tests: 32 Python (doctests included) and 23 JS. ruff, ruff format, mypy clean.
+
+Next: polishing round 5 (the documents read through; a fuzz of the readers with broken schedule files and BibTeX;
+the CHANGELOG as release notes), then v0.1.0.

@@ -61,7 +61,6 @@ class FakeModel:
     vocab = ["[UNK]", "diffusion", "graph", "regret"]
 
     class _Tok:
-        def get_vocab(self) -> dict[str, int]:
-            return {t: i for i, t in enumerate(FakeModel.vocab)}
+        vocab = {t: i for i, t in enumerate(["[UNK]", "diffusion", "graph", "regret"])}
 
     tokenizer = _Tok()
