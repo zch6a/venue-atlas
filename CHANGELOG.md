@@ -11,5 +11,7 @@ First release.
   search by words or by meaning (the query embedded in the browser).
 - ACL, EMNLP and NAACL (main conferences, 2021–2025) from the ACL Anthology's BibTeX with abstracts.
 - A topic's papers per year as a chart with the numbers as text, and its papers as a list; the map by keyboard.
+- Every paper links to its conference page, its paper (or PDF) and its code or project page when
+  the source has them; LaTeX in titles shown as Unicode.
 - `venue-atlas search`: the closest papers to a query, from a built atlas (`--json`).
 - A monthly GitHub workflow that builds the site with a read-only token and deploys it.

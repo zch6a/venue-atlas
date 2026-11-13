@@ -105,12 +105,20 @@ def _build(args: argparse.Namespace) -> int:
 
 
 def _search(args: argparse.Namespace) -> int:
+    if args.k < 1:
+        raise ValueError("-k must be 1 or more")
     path = args.atlas / "data" / f"{args.venue}.json"
-    doc = json.loads(path.read_text(encoding="utf-8"))
-    dim = int(doc["model"]["dim"])
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        dim = int(doc["model"]["dim"])
+        _ = doc["papers"]["title"], doc["papers"]["scale"], doc["topics"]
+    except (ValueError, KeyError, TypeError) as e:
+        raise ValueError(f"{path}: not an atlas this version reads ({e}); build it again") from e
     vec = np.frombuffer((args.atlas / "data" / f"{args.venue}.vec").read_bytes(), dtype=np.int8).reshape(-1, dim)
     scale = np.asarray(doc["papers"]["scale"], dtype=np.float32)
     model = load()
+    if not model.ids([args.query])[0]:
+        raise ValueError(f"no word of {args.query!r} is in the model's vocabulary")
     mean = np.asarray(doc["model"].get("mean") or np.zeros(dim), dtype=np.float32)
     q = centre(model.encode([args.query]), mean)[0]
     scores = (vec.astype(np.float32) @ q) * scale

@@ -335,12 +335,10 @@ def merge_small(x: np.ndarray, labels: np.ndarray, minimum: int) -> np.ndarray:
         small = ids[counts < minimum]
         if len(small) == 0 or len(ids) == 1:
             break
-        big = ids[counts >= minimum] if (counts >= minimum).any() else ids[counts == int(np.max(counts))]
+        s = small[np.argmin(counts[np.isin(ids, small)])]  # the smallest first
+        big = ids[counts >= minimum] if (counts >= minimum).any() else ids[ids != s]
         cent = np.stack([x[labels == c].mean(axis=0) for c in big])
         cent /= np.linalg.norm(cent, axis=1, keepdims=True) + 1e-12
-        s = small[0]
-        if s in big:
-            break
         members = labels == s
         labels[members] = big[np.argmax(x[members] @ cent.T, axis=1)]
     ids, counts = np.unique(labels, return_counts=True)

@@ -20,6 +20,7 @@ const state = {
   vectors: null, // Int8Array, n × dim (loaded for meaning search)
   model: null, // { vocab: Map, unk, dim, scale: Float32Array, table: Int8Array }
   grid: null,
+  last: null, // the last search, to run again when the years change
 };
 
 // ------------------------------------------------------------------ colours
@@ -59,11 +60,16 @@ async function bytes(url) {
   return new Int8Array(await r.arrayBuffer());
 }
 
+let loading = 0; // each venue load's number: a load overtaken by a later one is dropped
+
 async function loadVenue(key) {
+  const mine = ++loading;
   status.textContent = "Loading…";
   status.hidden = false;
   const atlas = await json(`data/${encodeURIComponent(key)}.json`);
+  if (mine !== loading) return false;
   if (atlas.format !== "venue-atlas/1") throw new Error("an atlas in a format this page does not read");
+  $("venue").value = key;
   state.atlas = atlas;
   state.n = atlas.count;
   state.years = new Set(atlas.years);
@@ -79,8 +85,10 @@ async function loadVenue(key) {
   $("results").hidden = true;
   $("about").textContent = `${atlas.name} ${atlas.years[0]}–${atlas.years[atlas.years.length - 1]}: ${atlas.count.toLocaleString()} papers in ${atlas.topics.length} topics · built ${atlas.built}`;
   document.title = `${atlas.name} · venue-atlas`;
+  state.last = null;
   status.hidden = true;
   draw();
+  return true;
 }
 
 async function loadModel() {
@@ -94,9 +102,14 @@ async function loadModel() {
   if (!state.vectors) {
     status.hidden = false;
     status.textContent = "Loading the papers' vectors…";
-    state.vectors = await bytes(`data/${encodeURIComponent(state.atlas.venue)}.vec`);
+    const atlas = state.atlas;
+    const vectors = await bytes(`data/${encodeURIComponent(atlas.venue)}.vec`);
+    if (state.atlas !== atlas) return false; // the venue changed meanwhile: these are another venue's vectors
+    if (vectors.length !== atlas.count * atlas.model.dim) throw new Error("the papers' vectors do not match the atlas");
+    state.vectors = vectors;
   }
   status.hidden = true;
+  return true;
 }
 
 // ------------------------------------------------------------------ geometry
@@ -158,8 +171,18 @@ function nearest(px, py) {
 
 // ------------------------------------------------------------------ drawing
 
+let frame = 0;
 function draw() {
+  // at most one drawing per animation frame (drags and wheels send many events)
+  if (!frame) frame = requestAnimationFrame(() => {
+    frame = 0;
+    paint();
+  });
+}
+
+function paint() {
   if (!state.atlas) return;
+  const dim = css("--dim");
   const { w, h, dpr } = size();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
@@ -174,7 +197,7 @@ function draw() {
       if (focus && (pass === 0) === on) continue;
       const [x, y] = toScreen(i, w, h);
       if (x < -5 || y < -5 || x > w + 5 || y > h + 5) continue;
-      ctx.fillStyle = on ? colourOf(i) : css("--dim");
+      ctx.fillStyle = on ? colourOf(i) : dim;
       ctx.beginPath();
       ctx.arc(x, y, on && focus ? radius + 0.8 : radius, 0, 6.2832);
       ctx.fill();
@@ -262,13 +285,17 @@ function select(i, centre = false) {
   }
   const bits = [String(p.year[i]), DECISION[p.decision[i]], a.conf_topics[p.conf_topic[i]] || ""].filter(Boolean);
   const links = el("div", { class: "links" });
-  for (const [url, text] of [[p.url[i], "paper"], [p.page[i], "conference page"]]) {
+  const project = (p.project || [])[i] || "";
+  const projectName = /^https?:\/\/(www\.)?(github|gitlab)\.com\//.test(project) ? "code" : "project page";
+  for (const [url, text] of [[p.url[i], "paper"], [p.page[i], "conference page"], [project, projectName]]) {
     const l = safeLink(url, text);
     if (l) links.append(l);
   }
   const near = el("ol", { class: "list" });
-  for (let k = 0; k < 8; k++) {
-    const j = a.neighbours[i * 8 + k];
+  const per = a.neighbour_count || 8;
+  for (let k = 0; k < per; k++) {
+    const j = a.neighbours[i * per + k];
+    if (j === undefined || j < 0) break;
     near.append(el("li", {}, el("button", { on: { click: () => select(j, true) } }, `${p.title[j]} (${p.year[j]})`)));
   }
   box.append(
@@ -300,6 +327,8 @@ function renderYears() {
       if (state.years.has(y) && state.years.size === 1) return; // at least one year
       state.years.has(y) ? state.years.delete(y) : state.years.add(y);
       b.setAttribute("aria-pressed", String(state.years.has(y)));
+      if (state.topic >= 0) showTopic(state.topic, $("results"));
+      else if (state.hits && state.last) state.last(); // the search again, over the years shown
       renderTopics();
       draw();
     });
@@ -404,6 +433,7 @@ function showResults(order, scores, label) {
 // ------------------------------------------------------------------ search
 
 function searchWords(q) {
+  state.last = () => searchWords(q);
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
   const p = state.atlas.papers;
   const order = [];
@@ -416,7 +446,8 @@ function searchWords(q) {
 }
 
 async function searchMeaning(q) {
-  await loadModel();
+  state.last = () => searchMeaning(q);
+  if (!(await loadModel())) return;
   const m = state.model;
   const ids = encode(q, m.vocab, m.unk);
   if (!ids.length) return showResults([], null, `No words of “${q}” are in the model's vocabulary`);
@@ -554,27 +585,36 @@ async function start() {
     const index = await json("data/index.json");
     const sel = $("venue");
     for (const v of index) sel.append(el("option", { value: v.venue }, `${v.name} (${v.count.toLocaleString()})`));
-    const [hashVenue, hashPaper] = decodeURIComponent(location.hash.slice(1)).split("/");
+    const [hashVenue, hashPaper] = readHash();
     const first = index.find((v) => v.venue === hashVenue) || index[0];
     sel.value = first.venue;
     sel.addEventListener("change", () => loadVenue(sel.value).catch(fail));
     window.addEventListener("hashchange", () => {
-      const [v, paper] = decodeURIComponent(location.hash.slice(1)).split("/");
+      const [v, paper] = readHash();
       if (v && v !== state.atlas?.venue && index.some((x) => x.venue === v)) {
-        sel.value = v;
-        loadVenue(v).then(() => {
-          const j = Number(paper);
-          if (Number.isInteger(j) && j >= 0 && j < state.n) select(j, true);
+        loadVenue(v).then((done) => {
+          if (done && paper >= 0 && paper < state.n) select(paper, true);
         }).catch(fail);
       }
     });
     await loadVenue(first.venue);
-    const i = Number(hashPaper);
-    if (hashVenue === first.venue && Number.isInteger(i) && i >= 0 && i < state.n) select(i, true);
+    if (hashVenue === first.venue && hashPaper >= 0 && hashPaper < state.n) select(hashPaper, true);
   } catch (err) {
     fail(err);
   }
 }
+/** @returns {[string, number]} the venue and the paper (-1 for none) the URL's hash names; a malformed hash names neither */
+function readHash() {
+  let text = "";
+  try {
+    text = decodeURIComponent(location.hash.slice(1));
+  } catch {
+    return ["", -1];
+  }
+  const [venue, paper] = text.split("/");
+  return [venue || "", /^\d+$/.test(paper || "") ? Number(paper) : -1];
+}
+
 function fail(err) {
   status.hidden = false;
   status.textContent = `Could not load the atlas: ${err.message}`;

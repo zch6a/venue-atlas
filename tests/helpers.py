@@ -52,6 +52,9 @@ class FakeModel:
                 out[i] = np.mean([self._word(w) for w in words], axis=0)
         return out / (np.linalg.norm(out, axis=1, keepdims=True) + 1e-12)
 
+    def ids(self, texts: list[str]) -> list[list[int]]:
+        return [[1] if any(w.isalpha() for w in t.split()) else [] for t in texts]
+
     def token_table(self) -> np.ndarray:
         return np.stack([self._word(t) for t in self.vocab])
 

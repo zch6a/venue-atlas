@@ -30,10 +30,10 @@ jobs:
         env:
           VENUE_ATLAS_HOME: .cache/model
         run: |
-          uv run venue-atlas model
-          uv run venue-atlas build iclr neurips icml cvpr acl emnlp naacl --out site --cache .cache/venue-atlas
+          uv run --locked venue-atlas model
+          uv run --locked venue-atlas build iclr neurips icml cvpr acl emnlp naacl --out site --cache .cache/venue-atlas
       - name: Keep the inputs for the next build
-        if: ${{ !cancelled() }}
+        # only after a build that worked: a bad download is never kept for the next run
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cache

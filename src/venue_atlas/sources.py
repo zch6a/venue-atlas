@@ -9,15 +9,19 @@ decision (oral, spotlight, poster) and the conference's topic.
 
 from __future__ import annotations
 
+import gzip
+import http.client
 import json
+import os
 import re
 import time
 import urllib.request
+import zlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .anthology import MAX_AGE_DAYS
+from .anthology import MAX_AGE_DAYS, latex_text
 from .anthology import URL as ANTHOLOGY_URL
 from .anthology import entries as anthology_entries
 
@@ -66,6 +70,7 @@ class Paper:
     decision: str  # oral, spotlight, poster, or ""
     topic: str  # the conference's own topic, or ""
     key: str = field(default="")  # the conference's id for it
+    project: str = field(default="")  # the authors' project page or code, when the schedule gives one
 
 
 class SourceError(Exception):
@@ -95,14 +100,30 @@ def anthology_raw(cache: Path | None = None, fetcher: Fetcher | None = None) -> 
     f = cache / "anthology+abstracts.bib.gz" if cache is not None else None
     if f is not None and f.is_file() and time.time() - f.stat().st_mtime < MAX_AGE_DAYS * 86400:
         return f.read_bytes()
-    try:
-        data = (fetcher or _fetch)(ANTHOLOGY_URL)
-    except OSError as e:
-        raise SourceError(f"{ANTHOLOGY_URL}: could not download ({getattr(e, 'code', None) or getattr(e, 'reason', e)})") from e
+    data = _download(ANTHOLOGY_URL, fetcher or _fetch)
+    if data[:2] == b"\x1f\x8b":
+        try:
+            gzip.decompress(data)  # the whole archive, before it is kept: a truncated one is refused here
+        except (EOFError, OSError, zlib.error) as e:
+            raise SourceError(f"{ANTHOLOGY_URL}: a broken archive ({e}); run the build again") from e
     if f is not None:
-        f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_bytes(data)
+        _keep(f, data)
     return data
+
+
+def _download(url: str, fetcher: Fetcher) -> bytes:
+    try:
+        return fetcher(url)
+    except (OSError, http.client.HTTPException) as e:  # URLError, HTTPError, timeouts, a reply cut short
+        raise SourceError(f"{url}: could not download ({getattr(e, 'code', None) or getattr(e, 'reason', None) or e})") from e
+
+
+def _keep(path: Path, data: bytes) -> None:
+    """Writes the file whole or not at all (a temporary file, renamed into place)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    part = path.with_name(path.name + ".part")
+    part.write_bytes(data)
+    os.replace(part, path)
 
 
 def parse_anthology(data: bytes, venue: Venue, years: list[int]) -> list[Paper]:
@@ -129,17 +150,23 @@ def raw(venue: Venue, year: int, cache: Path | None = None, fetcher: Fetcher = _
         if f.is_file():
             return f.read_bytes()
     url = url_for(venue, year)
-    try:
-        data = fetcher(url)
-    except OSError as e:
-        raise SourceError(f"{url}: could not download ({getattr(e, 'code', None) or getattr(e, 'reason', e)})") from e
+    data = _download(url, fetcher)
+    parse(data, venue, year)  # a maintenance page or a cut-off file is refused before it is cached
     if cache is not None:
-        cache.mkdir(parents=True, exist_ok=True)
-        (cache / f"{venue.key}-{year}.json").write_bytes(data)
+        _keep(cache / f"{venue.key}-{year}.json", data)
     return data
 
 
 def _text(value: object) -> str:
+    """A field as text: strings stripped, whole numbers (ids) written out, the rest (None, "None", lists) empty.
+
+    >>> _text(" a "), _text(3238), _text("None"), _text(None), _text(True), _text([1])
+    ('a', '3238', '', '', '', '')
+    """
+    if isinstance(value, bool):
+        return ""
+    if isinstance(value, int):
+        return str(value)
     return value.strip() if isinstance(value, str) and value.strip() not in ("None", "null") else ""
 
 
@@ -199,22 +226,35 @@ def parse(data: bytes, venue: Venue, year: int) -> list[Paper]:
         if not isinstance(r, dict):
             continue
         title = re.sub(r"\s+", " ", _text(r.get("name")))
+        if "\\" in title or "$" in title:
+            title = latex_text(title)  # LaTeX in a title: Schr\"{o}dinger, $\pi$BO, \emph{De Novo}
         abstract_html = _text(r.get("abstract"))
-        if not title or NOT_PAPERS.match(title) or "/virtual/" in abstract_html:
-            continue  # a session or a talk: its abstract lists other entries
+        if not title or "/virtual/" in abstract_html:
+            continue  # a session: its abstract lists the session's entries
+        if NOT_PAPERS.match(title) and not _text(r.get("paper_url")) and "accept" not in _text(r.get("decision")).lower():
+            continue  # a talk, a tutorial, a social: titled like one and with no paper or decision ("Social Reward: ..." stays)
         key = norm_title(title)
         page = _text(r.get("virtualsite_url"))
         if page.startswith("/"):
             page = f"https://{venue.host}{page}"
-        url = _text(r.get("paper_url")) or _text(r.get("url"))
+        ident = _text(r.get("id"))
+        if not page and ident.isdigit():  # the 2021 files give no page; the site has one at the usual path (checked)
+            kind = "oral" if "oral" in _text(r.get("eventtype")).lower() else "poster"
+            page = f"https://{venue.host}/virtual/{year}/{kind}/{ident}"
+        # the paper: its proceedings or OpenReview page (an OpenReview PDF link made the forum's); `url` is the
+        # authors' own page (project, code), kept apart
+        url = _text(r.get("paper_url")) or _text(r.get("paper_pdf_url")).replace("openreview.net/pdf?id=", "openreview.net/forum?id=")
         if url and not url.startswith(("https://", "http://")):
             url = ""
+        project = _text(r.get("url"))
+        if not project.startswith(("https://", "http://")) or project == url:
+            project = ""
         abstract = plain(abstract_html)
         if len(abstract) > 300 and abstract in by_abstract and by_abstract[abstract] != key:
             key = by_abstract[abstract]  # the same paper under another title (listed twice): one entry
         elif len(abstract) > 300:
             by_abstract[abstract] = key
-        p = Paper(title, year, abstract, url, page, _decision(r), _text(r.get("topic")), _text(r.get("uid")) or _text(r.get("id")))
+        p = Paper(title, year, abstract, url, page, _decision(r), _text(r.get("topic")), _text(r.get("uid")) or ident, project)
         old = by_key.get(key)
         if old is None:
             by_key[key] = p
@@ -224,6 +264,7 @@ def parse(data: bytes, venue: Venue, year: int) -> list[Paper]:
         old.abstract = old.abstract or p.abstract
         old.url = old.url or p.url
         old.topic = old.topic or p.topic
+        old.project = old.project or p.project
         if "/poster/" in p.page and "/poster/" not in old.page:
             old.page = p.page
     return list(by_key.values())
@@ -240,5 +281,12 @@ def papers(venue: Venue, years: list[int], cache: Path | None = None, fetcher: F
         cached = cache is not None and (cache / f"{venue.key}-{year}.json").is_file()
         if i and not cached:
             time.sleep(pause)  # one file per year, a little apart
-        out += parse(raw(venue, year, cache, fetcher), venue, year)
+        try:
+            out += parse(raw(venue, year, cache, fetcher), venue, year)
+        except SourceError:
+            bad = cache / f"{venue.key}-{year}.json" if cache is not None else None
+            if not (bad is not None and bad.is_file()):
+                raise
+            bad.unlink()  # a cached file that no longer reads (written by an older version): fetched again
+            out += parse(raw(venue, year, cache, fetcher), venue, year)
     return out

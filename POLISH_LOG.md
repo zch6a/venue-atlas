@@ -72,3 +72,35 @@ Tests: 24 Python (an Anthology file with front matter, long, short, Findings and
 
 Next: polishing round 2 (an independent review of the code; the social card; the published site with all seven
 venues checked).
+
+### 2026-11-14 — polishing round 2
+
+**An independent review** (12 findings, all fixed, each with a test where one can be written): a title read as a
+session's (“Social …”, “Tutorial …”) dropped real papers, so such a title is skipped only when the record has no paper
+link and no decision; a download is parsed before it is cached and written whole (a temporary file renamed), the
+Anthology archive is decompressed before it is kept, and a reply cut short, an `EOFError` or a zlib error is an error
+message, not a traceback; a cached file that no longer reads is fetched again; the workflow keeps its cache only after
+a build that worked and runs `uv run --locked`. On the site: a malformed hash (`#neurips/%E0%A4%A`) names nothing
+instead of breaking the page; a venue load or a vectors load overtaken by a later one is dropped; the topic panel and
+the search results follow the years; drawing is once per animation frame; only the status line is a live region; the
+number of neighbours comes from the atlas. `merge_small` handles every topic being small; `venue-atlas search` checks
+`-k`, a query with no known word and an atlas it cannot read (exit 2).
+
+**Links checked on all seven venues**: ICLR and NeurIPS 2021 had no conference page and their `url` was a project page
+shown as “paper”. Now every paper has a conference page (built from the schedule's id where the file gives none,
+`/virtual/2021/poster/<id>`, checked to answer), the paper link falls back to the PDF link (OpenReview PDFs as their
+forum), and a project or code page is its own link. Papers left without a paper link have none in the source (ICLR
+1,214, NeurIPS 2,431, ICML 1,896); the conference page covers them.
+
+**Titles' LaTeX**: maths becomes Unicode (`$\pi$BO` → πBO, `$\ell_p$` → ℓₚ, `VA-RED$^2$` → VA-RED², `\(\varepsilon\)`
+→ ε) and text commands their text (`Schr\"{o}dinger`, `Polyak-{\L}ojasiewicz`, `\emph{De Novo}`, a `\\` line
+break); after the rebuild no title in the seven venues has a backslash or a dollar left (21 before). The same cleaning
+applies before embedding, so a topic is no longer named “sqrt · omega”.
+
+**The social card** (`docs/social-preview.png`, 1280×640, from `scripts/social-card.html`), and the site checked
+locally with all seven venues: each loads, no console errors.
+
+Tests: 28 Python (doctests included) and 19 JS. ruff, ruff format, mypy clean.
+
+Next: polishing round 3 (the published site after the monthly build; performance of the largest venue on a phone;
+the README's numbers against the built atlases).

@@ -202,3 +202,65 @@ def test_the_anthology_main_conference_papers(tmp_path: Path) -> None:
         papers(VENUES["naacl"], [2023], tmp_path, fetcher)
     atlas = build.make(acl, ps * 3 if len(ps) < 3 else ps, FakeModel(), epochs=50) if False else None
     assert atlas is None
+
+
+def test_links_paper_page_and_project() -> None:
+    records = [
+        {"name": "Old Style Entry", "abstract": "x " * 50, "id": "3238", "eventtype": "Poster", "paper_pdf_url": "https://openreview.net/pdf?id=abc"},
+        {"name": "Project Linked", "abstract": "y " * 50, "id": "9", "eventtype": "Poster", "paper_url": "https://openreview.net/forum?id=q",
+         "url": "https://github.com/a/b", "virtualsite_url": "/virtual/2024/poster/9"},
+        {"name": "Odd Fields", "abstract": None, "id": None, "eventtype": None, "url": "javascript:alert(1)", "paper_url": "ftp://x"},
+    ]  # fmt: skip
+    import json as _json
+
+    ps = {p.title: p for p in parse(_json.dumps({"results": records}).encode(), ICLR, 2021)}
+    old = ps["Old Style Entry"]
+    assert old.url == "https://openreview.net/forum?id=abc" and old.page == "https://iclr.cc/virtual/2021/poster/3238" and old.project == ""
+    linked = ps["Project Linked"]
+    assert linked.project == "https://github.com/a/b" and linked.page == "https://iclr.cc/virtual/2024/poster/9"
+    odd = ps["Odd Fields"]
+    assert (odd.url, odd.page, odd.project, odd.abstract) == ("", "", "", "")
+
+
+def test_review_round_2(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    import gzip
+    import http.client
+    import json as _json
+
+    # a real paper titled like a session stays; a session-like entry with nothing of a paper goes
+    records = [{"name": "Social Reward: Evaluating Rewards", "abstract": "a " * 50, "paper_url": "https://openreview.net/forum?id=s", "decision": "Accept (poster)"},
+               {"name": "Panel Discussion on Ethics", "abstract": "talk", "eventtype": "Panel"},
+               {"name": "Affinity-Aware Graph Networks", "abstract": "b " * 50, "decision": "Accept (poster)"}]  # fmt: skip
+    titles = [p.title for p in parse(_json.dumps({"results": records}).encode(), ICLR, 2024)]
+    assert titles == ["Social Reward: Evaluating Rewards", "Affinity-Aware Graph Networks"]
+    # a download that is not a schedule file is refused and not cached; a cut-off reply is an error, not a traceback
+    with pytest.raises(SourceError, match="not a JSON"):
+        papers(ICLR, [2024], tmp_path, lambda u: b"<html>maintenance</html>")
+    assert not (tmp_path / "iclr-2024.json").exists()
+
+    def cut(u: str) -> bytes:
+        raise http.client.IncompleteRead(b"")
+
+    with pytest.raises(SourceError, match="could not download"):
+        papers(ICLR, [2024], tmp_path, cut)
+    with pytest.raises(SourceError, match="broken archive"):
+        papers(VENUES["acl"], [2024], tmp_path, lambda u: gzip.compress(b"@inproceedings{x}" * 100)[:-20])
+    assert not (tmp_path / "anthology+abstracts.bib.gz").exists()
+    # a cached file that no longer reads is fetched again
+    (tmp_path / "iclr-2023.json").write_bytes(b"garbage")
+    assert len(papers(ICLR, [2023], tmp_path, lambda u: schedule(2023), pause=0)) == 36
+    # every topic small: still merged into the nearest
+    x = np.array([[1, 0], [0.99, 0.1], [0.98, 0.2], [0, 1], [0.1, 0.99], [0.2, 0.98], [0.7, 0.7]], dtype=np.float32)
+    x /= np.linalg.norm(x, axis=1, keepdims=True)
+    assert len(set(merge_small(x, np.array([0, 0, 0, 1, 1, 1, 2]), 5).tolist())) == 1
+    # the neighbours' count is in the atlas; search checks -k and a query of no known words
+    ps = parse(schedule(2024), ICLR, 2024)
+    doc = build.write(build.make(ICLR, ps, FakeModel(), epochs=50), tmp_path / "site")
+    assert doc["neighbour_count"] == build.NEIGHBOURS and len(doc["neighbours"]) == len(ps) * build.NEIGHBOURS
+    monkeypatch.setattr(cli, "load", lambda: FakeModel())
+    assert cli.main(["search", "regret", "--atlas", str(tmp_path / "site"), "--venue", "iclr", "-k", "0"]) == 2
+    assert cli.main(["search", "123 456", "--atlas", str(tmp_path / "site"), "--venue", "iclr"]) == 2
+    assert "vocabulary" in capsys.readouterr().err
+    (tmp_path / "site" / "data" / "iclr.json").write_text("{}", encoding="utf-8")
+    assert cli.main(["search", "regret", "--atlas", str(tmp_path / "site"), "--venue", "iclr"]) == 2
+    assert "build it again" in capsys.readouterr().err
